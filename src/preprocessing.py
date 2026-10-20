@@ -2,7 +2,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.compose import ColumnTransformer
 
 
-def create_preprocessing():
+def create_preprocessor():
     return ColumnTransformer(
         transformers=[
             (
