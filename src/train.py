@@ -50,8 +50,8 @@ print("*** SMOTE Logistic Regression Training Complete ***")
 
 
 rf_model = RandomForestClassifier(
-    n_estimators=5,
-    max_depth=20,
+    n_estimators=100,
+    max_depth=12,
     class_weight="balanced",
     random_state=42,
     n_jobs=-1
