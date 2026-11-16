@@ -1,5 +1,4 @@
 data/
-models/
 mlruns/
 .venv/
 __pycache__/
