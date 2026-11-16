@@ -2,6 +2,35 @@
 
 FraudGuard compares classifiers for detecting fraudulent credit-card transactions. The target is `Class`: `0` means legitimate and `1` means fraud. The selected model is a balanced random forest, with a fraud decision threshold of **0.5** chosen on the validation set.
 
+## Prediction interface
+
+Run the local web interface with Python 3.11 or newer from the repository root.
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python app.py
+```
+
+Open <http://127.0.0.1:5000>. If port 5000 is busy, run `python app.py --port 5001` and open <http://127.0.0.1:5001>.
+
+The interface loads `models/random_forest_classifier.joblib`. This artifact is already present in the local project and is excluded from Git. A fresh clone needs a copy of the trained artifact at that path. The app's requirements pin scikit-learn to the artifact's training version, **1.6.1**.
+
+1. Enter `Amount`, `Time` in elapsed seconds, and all of `V1` through `V28`, or load a sample transaction.
+2. Select **Analyze transaction** to see the model's classification and fraud score.
+3. Edit any input to analyze another transaction.
+
+`V1`–`V28` must use the dataset's anonymized PCA representation. Ordinary transaction details alone cannot supply these features. The server computes `Hours` and `LogAmount`, preserves the model's feature order, and flags fraud at a score of **0.5 or higher**. The displayed score is the model's class-1 probability estimate, with calibration limitations described below.
+
+Sample buttons use one legitimate and one fraudulent transaction from `data/processed/test.csv`. Entering your own transaction works independently of that optional file. The application processes inputs in memory and does not save submitted transactions.
+
+Run the inference and API checks with the virtual environment activated.
+
+```bash
+python -m unittest discover -s tests -v
+```
+
 ## Selected model
 
 The configuration below is present in both [the experimentation notebook](notebooks/02_experimentation.ipynb) and [the training script](src/train.py), and was checked against the saved model at `models/random_forest_classifier.joblib`.
@@ -149,5 +178,5 @@ print("Average precision:", average_precision_score(y_test, y_scores))
 - **Probability calibration:** no probability calibration assessment is recorded. Model scores should not automatically be interpreted as calibrated real-world fraud risks.
 - **Interpretability:** anonymized PCA features limit explanations in business terms. The notebook records random forest feature importance; no completed SHAP analysis is saved there. Feature importance and SHAP contributions do not establish causation.
 - **SMOTE comparison:** the logistic regression experiment and training script resample before invoking a pipeline that already contains SMOTE. The initial resampling happens before scaling; that experiment needs cleanup and fresh validation for a reliable comparison. The selected random forest does not use this path.
-- **Reproducibility:** dependency versions are not pinned, the model-loading version mismatch remains unresolved, and `evaluate.py` still contains the AP calculation issue described above. The EDA notebook writes `feature.csv` to its working directory, whereas the split script expects `data/added_feature/feature.csv`; rebuilding requires placing that generated file at the expected path.
+- **Reproducibility:** training and notebook dependencies remain unpinned, the historical evaluation used a mismatched scikit-learn version, and `evaluate.py` still contains the AP calculation issue described above. The prediction interface pins its dependencies in `requirements.txt`, including the model's scikit-learn version. The EDA notebook writes `feature.csv` to its working directory, whereas the split script expects `data/added_feature/feature.csv`; rebuilding requires placing that generated file at the expected path.
 - **Generalization:** this evaluation covers the available dataset only. Performance under changes in fraud patterns, transaction populations, or fraud prevalence has not been established.

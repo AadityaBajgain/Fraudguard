@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Check credit-card transaction data with FraudGuard's trained Random Forest classifier."
+    />
+    <title>FraudGuard · Transaction analysis</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;450;500;550;600;650;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='styles.css') }}"
+    />
+    <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="/" aria-label="FraudGuard home">
+          <span class="brand-mark" aria-hidden="true">f</span>
+          Fraud
+          <span>Guard</span>
+        </a>
+        <span class="header-divider" aria-hidden="true"></span>
+        <span class="header-section">Transaction analysis</span>
+        <div class="model-status" id="model-status" role="status">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span id="model-status-text">Connecting to model</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <div class="page-intro">
+        <div>
+          <h1>Check a transaction for fraud</h1>
+          <p class="intro-copy">
+            Enter transaction data to check for fraud with your trained Random
+            Forest.
+          </p>
+        </div>
+      </div>
+
+      <div class="model-overview" aria-label="Model information">
+        <div class="model-name">
+          <span class="model-symbol" aria-hidden="true">✳</span>
+          <div>
+            <span class="meta-label">Classifier</span>
+            <strong id="model-name">Random Forest</strong>
+          </div>
+        </div>
+        <div class="model-stat">
+          <span class="meta-label">Decision trees</span>
+          <strong id="model-trees">—</strong>
+        </div>
+        <div class="model-stat">
+          <span class="meta-label">Model features</span>
+          <strong id="model-features">—</strong>
+        </div>
+        <div class="model-stat">
+          <span class="meta-label">Fraud threshold</span>
+          <strong id="model-threshold">—</strong>
+        </div>
+      </div>
+      <div
+        class="form-error model-error"
+        id="model-error"
+        role="alert"
+        hidden
+      ></div>
+
+      <div class="analysis-layout">
+        <section class="card input-card" aria-labelledby="transaction-title">
+          <div class="card-heading">
+            <div>
+              <h2 id="transaction-title">Transaction details</h2>
+              <p>All fields are required for a prediction.</p>
+            </div>
+            <button class="text-button" type="button" id="reset-button">
+              Clear form
+            </button>
+          </div>
+          <div class="examples-section">
+            <span class="examples-label">
+              Try a transaction from the test dataset
+            </span>
+            <div class="example-buttons" id="example-buttons">
+              <button class="example-button" type="button" disabled>
+                Loading examples…
+              </button>
+            </div>
+            <p
+              class="small-message"
+              id="example-message"
+              role="status"
+              hidden
+            ></p>
+          </div>
+
+          <form id="transaction-form" novalidate>
+            <div class="transaction-fields">
+              <div class="field">
+                <label for="Amount">Transaction amount</label>
+                <div class="input-wrapper">
+                  <input
+                    type="number"
+                    id="Amount"
+                    name="Amount"
+                    min="0"
+                    step="any"
+                    placeholder="e.g. 149.62"
+                    inputmode="decimal"
+                    required
+                    aria-describedby="amount-help"
+                  />
+                </div>
+                <p class="field-help" id="amount-help">
+                  Use the amount in the dataset's original units.
+                </p>
+              </div>
+              <div class="field">
+                <label for="Time">
+                  Elapsed time
+                  <span class="label-unit">seconds</span>
+                </label>
+                <input
+                  type="number"
+                  id="Time"
+                  name="Time"
+                  min="0"
+                  step="any"
+                  placeholder="e.g. 406.5"
+                  inputmode="decimal"
+                  required
+                  aria-describedby="time-help"
+                />
+                <p class="field-help" id="time-help">
+                  Seconds since the dataset's first transaction.
+                </p>
+              </div>
+            </div>
+
+            <details class="pca-section" id="pca-section">
+              <summary>
+                <span class="pca-summary">
+                  <span class="chevron" aria-hidden="true"></span>
+                  <span>
+                    PCA features
+                    <span class="feature-range">V1–V28</span>
+                  </span>
+                </span>
+                <span class="feature-count" id="feature-count">
+                  0 of 28 entered
+                </span>
+              </summary>
+              <div class="pca-content">
+                <p class="pca-help" id="pca-help">
+                  Enter all 28 anonymized values from the dataset's PCA
+                  transformation. Load an example above to fill a complete
+                  transaction.
+                </p>
+                <div class="pca-grid">
+                  {% for number in range(1, 29) %}
+                  <div class="field pca-field">
+                    <label for="V{{ number }}">V{{ number }}</label>
+                    <input
+                      type="number"
+                      id="V{{ number }}"
+                      name="V{{ number }}"
+                      step="any"
+                      placeholder="Enter value"
+                      inputmode="decimal"
+                      required
+                      aria-describedby="pca-help"
+                    />
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+            </details>
+
+            <p class="derived-note">
+              <span aria-hidden="true">↳</span>
+              Hours and LogAmount are calculated automatically.
+            </p>
+            <div class="form-error" id="form-error" role="alert" hidden></div>
+            <div class="form-footer">
+              <span id="form-status" role="status">
+                Ready for transaction data
+              </span>
+              <button
+                class="primary-button"
+                type="submit"
+                id="predict-button"
+                disabled
+              >
+                <span id="predict-button-text">Analyze transaction</span>
+                <span class="button-arrow" aria-hidden="true">↗</span>
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <aside class="result-column">
+          <section
+            class="card result-card"
+            aria-labelledby="result-title"
+            aria-live="polite"
+            aria-atomic="true"
+            id="result-card"
+          >
+            <div class="result-heading">
+              <h2 id="result-title">Prediction</h2>
+              <span class="result-state" id="result-state">Awaiting data</span>
+            </div>
+            <div id="empty-result" class="empty-result">
+              <div class="empty-graphic" aria-hidden="true">
+                <span class="scan-corner top-left"></span>
+                <span class="scan-corner top-right"></span>
+                <span class="scan-corner bottom-left"></span>
+                <span class="scan-corner bottom-right"></span>
+                <span class="scan-line"></span>
+                <span class="scan-dot"></span>
+              </div>
+              <h3 id="empty-title">Ready when you are</h3>
+              <p id="empty-copy">
+                Complete the transaction details and select Analyze transaction
+                to see the model's prediction.
+              </p>
+            </div>
+            <div id="prediction-result" hidden>
+              <div class="prediction-outcome">
+                <span
+                  class="outcome-icon"
+                  id="outcome-icon"
+                  aria-hidden="true"
+                ></span>
+                <p class="meta-label">Model prediction</p>
+                <h3 id="prediction-label"></h3>
+                <p id="prediction-description"></p>
+              </div>
+              <div class="score-section">
+                <div class="score-heading">
+                  <span>Fraud model score</span>
+                  <strong id="fraud-score"></strong>
+                </div>
+                <div
+                  class="score-track"
+                  role="meter"
+                  id="score-meter"
+                  aria-label="Fraud model score"
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                  aria-valuenow="0"
+                >
+                  <div class="score-fill" id="score-fill"></div>
+                  <span
+                    class="threshold-marker"
+                    id="threshold-marker"
+                    aria-hidden="true"
+                  ></span>
+                </div>
+                <div class="score-scale">
+                  <span>0%</span>
+                  <span id="score-threshold">50% threshold</span>
+                  <span>100%</span>
+                </div>
+              </div>
+              <dl class="transaction-summary">
+                <div>
+                  <dt>Transaction amount</dt>
+                  <dd id="result-amount"></dd>
+                </div>
+                <div>
+                  <dt>Elapsed time</dt>
+                  <dd id="result-time"></dd>
+                </div>
+                <div>
+                  <dt>Derived hour</dt>
+                  <dd id="result-hours"></dd>
+                </div>
+                <div>
+                  <dt>Log amount</dt>
+                  <dd id="result-logamount"></dd>
+                </div>
+              </dl>
+            </div>
+            <p class="score-note">
+              Scores are uncalibrated model estimates. Review predictions
+              alongside your transaction context.
+            </p>
+          </section>
+
+          <section
+            class="input-guidance"
+            aria-labelledby="input-guidance-title"
+          >
+            <span class="information-mark" aria-hidden="true">i</span>
+            <div>
+              <h3 id="input-guidance-title">Working with this model</h3>
+              <p>
+                This classifier uses the credit-card dataset's anonymized PCA
+                features. Each prediction requires Time, Amount, and V1–V28.
+              </p>
+            </div>
+          </section>
+        </aside>
+      </div>
+      <footer class="page-footer">
+        <span>FraudGuard</span>
+        <span>Random Forest transaction screening</span>
+      </footer>
+    </main>
+  </body>
+</html>
